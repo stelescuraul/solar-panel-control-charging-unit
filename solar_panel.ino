@@ -15,7 +15,7 @@ const int pin_charging_module = 10; // Pin for charging module
 // Variable declaration
 double mVperAmp = 6.25;
 double battery_voltage = 0; //vout
-double panel_voltage = 0; //tensiunePanou
+double panel_voltage = 0; //Panel voltage
 double amp_to_mV = 0; //VoltageA0
 
 int raw_battery_amp = 0;
@@ -54,22 +54,22 @@ void loop() {
   // Until it reaches back to 44
   if (panel_voltage > battery_voltage) {
     digitalWrite(pin_charging_module, HIGH);
-    if (battery_voltage < 64.0) {
+    if (battery_voltage < 62.4) {
       if (fullyDischarged == false && battery_voltage <= 44.0 && hadFirstCycle == true) {
         fullyDischarged = true;
         digitalWrite(pin_boost, HIGH);
         digitalWrite(pin_float, LOW);
         current_charging_mode = "boost";
-      } else if (fullyDischarged == false && battery_voltage > 44.0 && battery_voltage <= 64.0 && hadFirstCycle == true) {
+      } else if (fullyDischarged == false && battery_voltage > 44.0 && battery_voltage <= 62.4 && hadFirstCycle == true) {
         digitalWrite(pin_boost, LOW);
         digitalWrite(pin_float, HIGH);
         current_charging_mode = "float";
-      } else if (fullyDischarged == false && hadFirstCycle == false && battery_voltage < 64.0) {
+      } else if (fullyDischarged == false && hadFirstCycle == false && battery_voltage < 62.4) {
         digitalWrite(pin_boost, HIGH);
         digitalWrite(pin_float, LOW);
         current_charging_mode = "boost";
       }
-    } else if (battery_voltage >= 64.0) {
+    } else if (battery_voltage >= 62.4) {
       digitalWrite(pin_boost, LOW);
       digitalWrite(pin_float, HIGH);
       current_charging_mode = "float";
