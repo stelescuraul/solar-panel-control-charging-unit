@@ -1,0 +1,4 @@
+{
+    "sketch": "solar_panel.ino.ino",
+    "board": "arduino:avr:uno"
+}
