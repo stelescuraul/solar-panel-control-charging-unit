@@ -83,7 +83,7 @@ void loop() {
   }
 
   // Build the output on the lcd
-  int nr_of_digits_amps = 10 + String(battery_amps).length();
+  int nr_of_digits_amps = 7 + String(battery_amps).length();
   int nr_of_digits_voltage = 0;
   String output_voltage = String(battery_voltage);
   output_voltage.remove(output_voltage.length() - 1);
@@ -103,7 +103,7 @@ void loop() {
   // Write Amps to lcd
   lcd.setCursor(0, 1);
   lcd.print("Curent:");
-  lcd.setCursor(10, 1);
+  lcd.setCursor(7, 1);
   lcd.print(battery_amps);
   lcd.setCursor(nr_of_digits_amps, 1);
   lcd.print("A");
