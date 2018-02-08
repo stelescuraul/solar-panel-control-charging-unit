@@ -14,10 +14,12 @@ const int pin_charging_module = 10; // Pin for charging module
 
 // Variable declaration
 double mVperAmp = 6.25;
-double battery_voltage = 0; //vout
-double panel_voltage = 0; //Panel voltage
-double amp_to_mV = 0; //VoltageA0
-
+double battery_voltage = 0; // vout
+double panel_voltage = 0; // Panel voltage
+double amp_to_mV = 0; // VoltageA0
+double low_barrier = 44.0 // The low barrier for charging the battery
+double high_barrier = 57.6 // The high barrier for charging the battery
+  
 int raw_battery_amp = 0;
 int raw_battery_voltage = 0;
 int raw_pannel_voltage = 0;
@@ -50,36 +52,36 @@ void loop() {
   battery_voltage = (raw_battery_voltage * 5.0) / 1023.0 / 0.05;
   panel_voltage = (raw_pannel_voltage * 5.0) / 1023.0 / 0.05;
 
-  // This goes to 64 in boost and then switches to float
-  // Until it reaches back to 44
+  // This indicates whether the battery should charge or not
   if (panel_voltage > battery_voltage) {
     digitalWrite(pin_charging_module, HIGH);
-    if (battery_voltage < 62.4) {
-      if (fullyDischarged == false && battery_voltage <= 44.0 && hadFirstCycle == true) {
-        fullyDischarged = true;
-        digitalWrite(pin_boost, HIGH);
-        digitalWrite(pin_float, LOW);
-        current_charging_mode = "boost";
-      } else if (fullyDischarged == false && battery_voltage > 44.0 && battery_voltage <= 62.4 && hadFirstCycle == true) {
-        digitalWrite(pin_boost, LOW);
-        digitalWrite(pin_float, HIGH);
-        current_charging_mode = "float";
-      } else if (fullyDischarged == false && hadFirstCycle == false && battery_voltage < 62.4) {
-        digitalWrite(pin_boost, HIGH);
-        digitalWrite(pin_float, LOW);
-        current_charging_mode = "boost";
-      }
-    } else if (battery_voltage >= 62.4) {
+  } else {
+    digitalWrite(pin_charging_module, LOW);
+  }
+  
+  // This goes to high_barrier in boost and then switches to float
+  // Until it reaches back to low_barrier  
+  if (battery_voltage < high_barrier) {
+    if (fullyDischarged == false && battery_voltage <= low_barrier && hadFirstCycle == true) {
+      fullyDischarged = true;
+      digitalWrite(pin_boost, HIGH);
+      digitalWrite(pin_float, LOW);
+      current_charging_mode = "boost";
+    } else if (fullyDischarged == false && battery_voltage > low_barrier && battery_voltage <= high_barrier && hadFirstCycle == true) {
       digitalWrite(pin_boost, LOW);
       digitalWrite(pin_float, HIGH);
       current_charging_mode = "float";
-      fullyDischarged = false;
-      hadFirstCycle = true;
+    } else if (fullyDischarged == false && hadFirstCycle == false && battery_voltage < high_barrier) {
+      digitalWrite(pin_boost, HIGH);
+      digitalWrite(pin_float, LOW);
+      current_charging_mode = "boost";
     }
-  } else {
-    digitalWrite(pin_charging_module, LOW);
-    digitalWrite(pin_float, LOW);
+  } else if (battery_voltage >= high_barrier) {
     digitalWrite(pin_boost, LOW);
+    digitalWrite(pin_float, HIGH);
+    current_charging_mode = "float";
+    fullyDischarged = false;
+    hadFirstCycle = true;
   }
 
   // Build the output on the lcd
