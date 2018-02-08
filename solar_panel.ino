@@ -17,8 +17,8 @@ double mVperAmp = 6.25;
 double battery_voltage = 0; // vout
 double panel_voltage = 0; // Panel voltage
 double amp_to_mV = 0; // VoltageA0
-double low_barrier = 44.0 // The low barrier for charging the battery
-double high_barrier = 57.6 // The high barrier for charging the battery
+double low_barrier = 44.0; // The low barrier for charging the battery
+double high_barrier = 57.6; // The high barrier for charging the battery
   
 int raw_battery_amp = 0;
 int raw_battery_voltage = 0;
