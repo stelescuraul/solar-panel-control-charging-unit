@@ -3,6 +3,7 @@
 
 // Dependencies
 #include <LiquidCrystal.h>
+#include "Timer.h"
 
 // Pin layout
 const int pin_amp_battery = A0; // Battery current PIN
@@ -11,6 +12,7 @@ const int pin_voltage_panel = A2; // Panel voltage PIN
 const int pin_float = 8; // Pin for float charging
 const int pin_boost = 9; // Pin for boost charging
 const int pin_charging_module = 10; // Pin for charging module
+const int pin_igbt = 11;
 
 // Variable declaration
 double mVperAmp = 6.25;
@@ -19,16 +21,22 @@ double panel_voltage = 0; // Panel voltage
 double amp_to_mV = 0; // VoltageA0
 double low_barrier = 44.0; // The low barrier for charging the battery
 double high_barrier = 57.6; // The high barrier for charging the battery
-  
+double float_barrier = 54.0; // The float barrier for igbt absortion
+
 int raw_battery_amp = 0;
 int raw_battery_voltage = 0;
 int raw_pannel_voltage = 0;
-int ACSoffset = 2500;
+const int ACSoffset = 2500;
 int battery_amps = 0;
+
+const float fiveHours = 1000 * 60 * 60 * 5;
 
 boolean fullyDischarged = false;
 boolean hadFirstCycle = false;
+
 String current_charging_mode = "";
+
+Timer timer;
 
 // Initialize lcd
 LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
@@ -42,6 +50,7 @@ void setup() {
 }
 
 void loop() {
+  timer.update();
   raw_battery_amp = analogRead(pin_amp_battery);
   raw_battery_voltage = analogRead(pin_voltage_battery);
   raw_pannel_voltage = analogRead(pin_voltage_panel);
@@ -58,31 +67,8 @@ void loop() {
   } else {
     digitalWrite(pin_charging_module, LOW);
   }
-  
-  // This goes to high_barrier in boost and then switches to float
-  // Until it reaches back to low_barrier  
-  if (battery_voltage < high_barrier) {
-    if (fullyDischarged == false && battery_voltage <= low_barrier && hadFirstCycle == true) {
-      fullyDischarged = true;
-      digitalWrite(pin_boost, HIGH);
-      digitalWrite(pin_float, LOW);
-      current_charging_mode = "boost";
-    } else if (fullyDischarged == false && battery_voltage > low_barrier && battery_voltage <= high_barrier && hadFirstCycle == true) {
-      digitalWrite(pin_boost, LOW);
-      digitalWrite(pin_float, HIGH);
-      current_charging_mode = "float";
-    } else if (fullyDischarged == false && hadFirstCycle == false && battery_voltage < high_barrier) {
-      digitalWrite(pin_boost, HIGH);
-      digitalWrite(pin_float, LOW);
-      current_charging_mode = "boost";
-    }
-  } else if (battery_voltage >= high_barrier) {
-    digitalWrite(pin_boost, LOW);
-    digitalWrite(pin_float, HIGH);
-    current_charging_mode = "float";
-    fullyDischarged = false;
-    hadFirstCycle = true;
-  }
+
+  setCharge();
 
   // Build the output on the lcd
   int nr_of_digits_amps = 7 + String(battery_amps).length();
@@ -122,10 +108,68 @@ void loop() {
   } else if (current_charging_mode == "float") {
     lcd.setCursor(15, 1);
     lcd.print("F");
+  } else if (current_charging_mode == "absortion") {
+    lcd.setCursor(15, 1);
+    lcd.print("A");
   } else {
     lcd.setCursor(15, 1);
     lcd.print("");
   }
 
   delay(100);
+}
+
+void setCharge() {
+
+  // This goes to high_barrier in boost and then switches to float
+  // Until it reaches back to low_barrier
+  if (battery_voltage <= high_barrier) {
+    if (fullyDischarged == false && battery_voltage <= low_barrier && hadFirstCycle == true) {
+      fullyDischarged = true;
+      digitalWrite(pin_igbt, HIGH);
+      current_charging_mode = "boost";
+    } else if (fullyDischarged == false && battery_voltage > low_barrier && battery_voltage <= high_barrier && hadFirstCycle == true) {
+      checkForAbsortionOrFloat();
+    } else if (fullyDischarged == false && hadFirstCycle == false && battery_voltage < high_barrier) {
+      digitalWrite(pin_igbt, HIGH);
+      current_charging_mode = "boost";
+    }
+  } else if (battery_voltage > high_barrier) {
+    checkForAbsortionOrFloat();
+    if (hadFirstCycle == false) {
+      hadFirstCycle = true;
+    }
+    fullyDischarged = false;
+  }
+}
+
+void checkForAbsortionOrFloat() {
+  if (current_charging_mode == "boost") {
+    current_charging_mode = "absortion";
+    timer.after(fiveHours, stopAbsortion);
+  }
+  if (current_charging_mode == "absortion") {
+    if (battery_voltage < high_barrier) {
+      digitalWrite(pin_igbt, HIGH);
+    } else {
+      digitalWrite(pin_igbt, LOW);
+    }
+  } else if (current_charging_mode == "float") {
+    if (battery_voltage < float_barrier) {
+      digitalWrite(pin_igbt, HIGH);
+    } else {
+      digitalWrite(pin_igbt, LOW);
+    }
+  }
+}
+
+void stopAbsortion() {
+  if (current_charging_mode == "absortion") {
+    current_charging_mode = "float";
+  }
+  if (battery_voltage < float_barrier) {
+    digitalWrite(pin_igbt, HIGH);
+  } else {
+    digitalWrite(pin_igbt, LOW);
+  }
 }
