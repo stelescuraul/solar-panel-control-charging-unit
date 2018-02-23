@@ -22,14 +22,16 @@ double amp_to_mV = 0; // VoltageA0
 double low_barrier = 44.0; // The low barrier for charging the battery
 double high_barrier = 57.6; // The high barrier for charging the battery
 double float_barrier = 54.0; // The float barrier for igbt absortion
+double reset_absortion_barrier = 55.4; // The reset barrier for absortion
 
 int raw_battery_amp = 0;
 int raw_battery_voltage = 0;
 int raw_pannel_voltage = 0;
-const int ACSoffset = 2500;
 int battery_amps = 0;
+int timerId;
+const int ACSoffset = 2500;
 
-const float fiveHours = 1000 * 60 * 60 * 5;
+const long fiveHours = 1000UL * 60UL * 60UL * 5UL;
 
 boolean fullyDischarged = false;
 boolean hadFirstCycle = false;
@@ -146,11 +148,16 @@ void setCharge() {
 void checkForAbsortionOrFloat() {
   if (current_charging_mode == "boost") {
     current_charging_mode = "absortion";
-    timer.after(fiveHours, stopAbsortion);
+    timerId = timer.after(fiveHours, stopAbsortion);
   }
   if (current_charging_mode == "absortion") {
-    if (battery_voltage < high_barrier) {
+    if (battery_voltage < high_barrier && battery_voltage >= reset_absortion_barrier) {
       digitalWrite(pin_igbt, HIGH);
+    } else if (battery_voltage < reset_absortion_barrier) {
+      digitalWrite(pin_igbt, HIGH);
+      timer.stop(timerId);
+      current_charging_mode = "boost";
+      fullyDischarged = true;
     } else {
       digitalWrite(pin_igbt, LOW);
     }
