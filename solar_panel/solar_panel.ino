@@ -10,6 +10,7 @@ const int pin_amp_battery = A0; // Battery current PIN
 const int pin_voltage_battery = A1; // Battery voltage PIN
 const int pin_voltage_panel = A2; // Panel voltage PIN
 const int pin_charging_module = 10; // Pin for charging module
+const int pin_alarm = 8; // Pin for safe alarm
 const int pin_igbt = 6;
 
 // Variable declaration
@@ -30,10 +31,11 @@ int timerId;
 const int ACSoffset = 2500;
 
 //const long absortionTime = 1000UL * 60UL * 60UL * 5UL;
-const long absortionTime= 1000UL * 60UL;
+const long absortionTime = 1000UL * 60UL;
 
 boolean fullyDischarged = false;
 boolean hadFirstCycle = false;
+boolean alarmTriggered = false;
 
 String current_charging_mode = "";
 
@@ -46,6 +48,7 @@ void setup() {
   Serial.begin(9600);
   lcd.begin(16, 2); // 16x2 lcd
   pinMode(pin_igbt, OUTPUT);
+  pinMode(pin_alarm, OUTPUT);
   pinMode(pin_charging_module, OUTPUT);
 }
 
@@ -61,14 +64,23 @@ void loop() {
   battery_voltage = (raw_battery_voltage * 5.0) / 1023.0 / 0.05;
   panel_voltage = (raw_pannel_voltage * 5.0) / 1023.0 / 0.05;
 
-  // This indicates whether the battery should charge or not
-  if (panel_voltage > battery_voltage) {
-    digitalWrite(pin_charging_module, HIGH);
-  } else {
+  if (battery_voltage >= 63) {
+    digitalWrite(pin_alarm, HIGH);
+    digitalWrite(pin_igbt, LOW);
     digitalWrite(pin_charging_module, LOW);
+    alarmTriggered = true;
+  } else if (alarmTriggered && battery_voltage < 62) {
+    digitalWrite(pin_alarm, LOW);
+    alarmTriggered = false;
+  } else {
+    // This indicates whether the battery should charge or not
+    if (panel_voltage > battery_voltage) {
+      digitalWrite(pin_charging_module, HIGH);
+    } else {
+      digitalWrite(pin_charging_module, LOW);
+    }
+    setCharge();
   }
-
-  setCharge();
 
   // Build the output on the lcd
   int nr_of_digits_amps = 7 + String(battery_amps).length();
