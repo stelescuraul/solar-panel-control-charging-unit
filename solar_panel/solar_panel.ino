@@ -9,10 +9,8 @@
 const int pin_amp_battery = A0; // Battery current PIN
 const int pin_voltage_battery = A1; // Battery voltage PIN
 const int pin_voltage_panel = A2; // Panel voltage PIN
-const int pin_float = 8; // Pin for float charging
-const int pin_boost = 9; // Pin for boost charging
 const int pin_charging_module = 10; // Pin for charging module
-const int pin_igbt = 11;
+const int pin_igbt = 6;
 
 // Variable declaration
 double mVperAmp = 6.25;
@@ -31,7 +29,8 @@ int battery_amps = 0;
 int timerId;
 const int ACSoffset = 2500;
 
-const long fiveHours = 1000UL * 60UL * 60UL * 5UL;
+//const long absortionTime = 1000UL * 60UL * 60UL * 5UL;
+const long absortionTime= 1000UL * 60UL;
 
 boolean fullyDischarged = false;
 boolean hadFirstCycle = false;
@@ -46,8 +45,7 @@ LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
 void setup() {
   Serial.begin(9600);
   lcd.begin(16, 2); // 16x2 lcd
-  pinMode(pin_float, OUTPUT);
-  pinMode(pin_boost, OUTPUT);
+  pinMode(pin_igbt, OUTPUT);
   pinMode(pin_charging_module, OUTPUT);
 }
 
@@ -122,7 +120,6 @@ void loop() {
 }
 
 void setCharge() {
-
   // This goes to high_barrier in boost and then switches to float
   // Until it reaches back to low_barrier
   if (battery_voltage <= high_barrier) {
@@ -132,7 +129,7 @@ void setCharge() {
       current_charging_mode = "boost";
     } else if (fullyDischarged == false && battery_voltage > low_barrier && battery_voltage <= high_barrier && hadFirstCycle == true) {
       checkForAbsortionOrFloat();
-    } else if (fullyDischarged == false && hadFirstCycle == false && battery_voltage < high_barrier) {
+    } else if (fullyDischarged == false && hadFirstCycle == false && battery_voltage <= high_barrier) {
       digitalWrite(pin_igbt, HIGH);
       current_charging_mode = "boost";
     }
@@ -148,7 +145,7 @@ void setCharge() {
 void checkForAbsortionOrFloat() {
   if (current_charging_mode == "boost") {
     current_charging_mode = "absortion";
-    timerId = timer.after(fiveHours, stopAbsortion);
+    timerId = timer.after(absortionTime, stopAbsortion);
   }
   if (current_charging_mode == "absortion") {
     if (battery_voltage < high_barrier && battery_voltage >= reset_absortion_barrier) {
